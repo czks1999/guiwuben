@@ -225,45 +225,69 @@ function closeModal() {
 }
 
 // 保存物品（新增或更新）
-function actuallySave(id, name, category, location, price, date, imageBase64) {
-    // 获取图标
+function saveItem(event) {
+    event.preventDefault();
+    const id = itemIdInput.value ? parseInt(itemIdInput.value) : null;
+    const name = itemNameInput.value.trim();
+    if (!name) {
+        alert('请填写物品名称');
+        return;
+    }
+    const category = itemCategorySelect.value;
+    const location = itemLocationInput.value.trim();
+    const price = parseFloat(itemPriceInput.value) || 0;
+    const date = itemDateInput.value;
     const icon = document.getElementById('itemIcon')?.value || '📦';
-    // 获取有效状态
     const isActive = document.getElementById('itemActive')?.checked ?? true;
     let inactiveDate = '';
     if (!isActive) {
         inactiveDate = document.getElementById('itemInactiveDate')?.value || '';
     }
     
+    // 处理图片
+    if (itemImageInput.files && itemImageInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const imageBase64 = e.target.result;
+            actuallySave(id, name, category, location, price, date, icon, isActive, inactiveDate, imageBase64);
+        };
+        reader.readAsDataURL(itemImageInput.files[0]);
+    } else {
+        // 没有新图片，保留原有图片（如果是编辑且已有图片）
+        let imageBase64 = '';
+        if (id) {
+            const existing = items.find(i => i.id === id);
+            if (existing && existing.imageBase64) imageBase64 = existing.imageBase64;
+        }
+        actuallySave(id, name, category, location, price, date, icon, isActive, inactiveDate, imageBase64);
+    }
+}
+
+// 实际执行保存
+function actuallySave(id, name, category, location, price, date, icon, isActive, inactiveDate, imageBase64) {
     if (id) {
-        // 更新
+        // 编辑现有物品
         const index = items.findIndex(i => i.id === id);
         if (index !== -1) {
-            items[index] = { 
-                ...items[index], 
-                name, category, location, price, date, imageBase64,
-                icon, isActive, inactiveDate
+            items[index] = {
+                ...items[index],
+                name, category, location, price, date, icon, isActive, inactiveDate, imageBase64
             };
         }
     } else {
-        // 新增
+        // 新增物品
         const newItem = {
             id: Date.now(),
-            name,
-            category,
-            location,
-            price,
-            date,
-            imageBase64,
-            icon,
-            isActive,
-            inactiveDate
+            name, category, location, price, date, icon, isActive, inactiveDate, imageBase64
         };
         items.push(newItem);
     }
+    // 保存到本地存储
     saveToLocalStorage();
+    // 刷新列表和统计
     renderItems();
     updateStats();
+    // 关闭模态框
     closeModal();
 }
 
