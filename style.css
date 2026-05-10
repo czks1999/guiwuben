@@ -71,11 +71,10 @@ h1 {
 }
 
 .item-img {
-    width: 70px;
-    height: 70px;
-    background: #f0f2f5;
-    border-radius: 12px;
+    width: 60px;
+    height: 60px;
     object-fit: cover;
+    border-radius: 12px;
 }
 
 .item-info {
@@ -228,10 +227,13 @@ input, select {
 
 /* 图标样式 */
 .item-icon {
-    font-size: 28px;
-    margin-right: 12px;
-    width: 44px;
+    font-size: 44px;
+    width: 60px;
+    min-width: 60px;
     text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* 调整卡片内布局为水平（图标+内容+无按钮） */
@@ -251,6 +253,9 @@ input, select {
     transition: background 0.2s;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
 }
 .item-card:active {
     background: #cbd5e1;
@@ -301,4 +306,22 @@ input:checked + .slider {
 }
 input:checked + .slider:before {
     transform: translateX(24px);
+}
+/* 卡片整体布局微调 */
+.item-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 20px;
+    background: #e0f2fe; /* 有效浅蓝色 */
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.item-card.inactive {
+    background: #f0f0f0; /* 失效灰色 */
+}
+.item-card:active {
+    background: #cbd5e1; /* 点击反馈 */
 }
