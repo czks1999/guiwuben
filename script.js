@@ -32,16 +32,14 @@ function loadData() {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
         items = JSON.parse(stored);
-        // 迁移旧数据：为没有 isActive 和 inactiveDate 的物品补全
         items = items.map(item => {
             if (item.isActive === undefined) item.isActive = true;
             if (item.inactiveDate === undefined) item.inactiveDate = '';
+            if (item.icon === undefined) item.icon = '📦';   // 默认图标
             return item;
         });
     } else {
         items = [];
-        // 添加示例数据（可选）
-        // items = [ ... ]; 
     }
     saveToLocalStorage();
     renderItems();
@@ -57,25 +55,21 @@ function renderItems() {
     itemsListDiv.innerHTML = '';
     items.forEach(item => {
         const isActive = item.isActive !== false;
-        const cardClass = `item-card ${isActive ? '' : 'inactive'}`;
+        const card = document.createElement('div');
+        card.className = `item-card ${isActive ? '' : 'inactive'}`;
+        // 存储物品id以便长按删除
+        card.setAttribute('data-id', item.id);
         
+        // 图片处理（可选，如果没有图片就显示图标）
         let imgHtml = '';
         if (item.imageBase64 && item.imageBase64.startsWith('data:image')) {
             imgHtml = `<img class="item-img" src="${item.imageBase64}" alt="图片">`;
         } else {
-            imgHtml = `<div class="item-img" style="background:#e2e8f0; display:flex; align-items:center; justify-content:center;">📷</div>`;
+            // 如果没有图片，使用图标代替
+            imgHtml = `<div class="item-icon">${item.icon || '📦'}</div>`;
         }
         
-        let actionButtons = `<button class="edit-btn" data-id="${item.id}">✏️</button>`;
-        if (isActive) {
-            actionButtons += `<button class="inactive-btn" data-id="${item.id}">🔘失效</button>`;
-        } else {
-            actionButtons += `<button class="recover-btn" data-id="${item.id}">♻️恢复</button>`;
-        }
-        actionButtons += `<button class="delete-btn" data-id="${item.id}">🗑️</button>`;
-        
-        const card = document.createElement('div');
-        card.className = cardClass;
+        // 构建卡片内部HTML（无操作按钮）
         card.innerHTML = `
             ${imgHtml}
             <div class="item-info">
@@ -91,42 +85,34 @@ function renderItems() {
                     return '';
                 })() }
             </div>
-            <div class="item-actions">
-                ${actionButtons}
-            </div>
         `;
+        
+        // 添加点击卡片事件（进入编辑）
+        card.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openEditModal(item.id);
+        });
+        
+        // 添加长按删除事件
+        let pressTimer;
+        card.addEventListener('touchstart', (e) => {
+            pressTimer = setTimeout(() => {
+                if (confirm(`确定删除“${item.name}”吗？`)) {
+                    items = items.filter(i => i.id !== item.id);
+                    saveToLocalStorage();
+                    renderItems();
+                    updateStats();
+                }
+            }, 500); // 长按500ms触发
+        });
+        card.addEventListener('touchend', () => {
+            clearTimeout(pressTimer);
+        });
+        card.addEventListener('touchmove', () => {
+            clearTimeout(pressTimer);
+        });
+        
         itemsListDiv.appendChild(card);
-    });
-    
-    // 绑定所有按钮事件
-    document.querySelectorAll('.edit-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const id = parseInt(btn.dataset.id);
-            openEditModal(id);
-        });
-    });
-    document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const id = parseInt(btn.dataset.id);
-            if (confirm('确定删除此物品吗？')) {
-                items = items.filter(i => i.id !== id);
-                saveToLocalStorage();
-                renderItems();
-                updateStats();
-            }
-        });
-    });
-    document.querySelectorAll('.inactive-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const id = parseInt(btn.dataset.id);
-            markInactive(id);
-        });
-    });
-    document.querySelectorAll('.recover-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const id = parseInt(btn.dataset.id);
-            recoverItem(id);
-        });
     });
 }
 
@@ -163,7 +149,29 @@ function openEditModal(id) {
     itemLocationInput.value = item.location || '';
     itemPriceInput.value = item.price;
     itemDateInput.value = item.date || '';
-    // 显示已有图片预览
+    
+    // 加载图标
+    const iconSelect = document.getElementById('itemIcon');
+    if (iconSelect) iconSelect.value = item.icon || '📦';
+    
+    // 加载有效/失效状态
+    const activeCheckbox = document.getElementById('itemActive');
+    const inactiveDateGroup = document.getElementById('inactiveDateGroup');
+    const inactiveDateInput = document.getElementById('itemInactiveDate');
+    const activeLabel = document.getElementById('activeLabel');
+    if (activeCheckbox) {
+        activeCheckbox.checked = item.isActive !== false;
+        if (activeCheckbox.checked) {
+            inactiveDateGroup.style.display = 'none';
+            activeLabel.innerText = '有效';
+        } else {
+            inactiveDateGroup.style.display = 'flex';
+            activeLabel.innerText = '失效';
+            if (inactiveDateInput) inactiveDateInput.value = item.inactiveDate || '';
+        }
+    }
+    
+    // 图片预览等原有代码...
     if (item.imageBase64) {
         imagePreviewDiv.innerHTML = `<img src="${item.imageBase64}" style="max-width:100%;border-radius:16px;">`;
     } else {
@@ -171,50 +179,31 @@ function openEditModal(id) {
     }
     modal.style.display = 'flex';
 }
-
 // 关闭模态框
 function closeModal() {
     modal.style.display = 'none';
 }
 
 // 保存物品（新增或更新）
-function saveItem(event) {
-    event.preventDefault();
-    const id = itemIdInput.value ? parseInt(itemIdInput.value) : null;
-    const name = itemNameInput.value.trim();
-    if (!name) {
-        alert('请填写物品名称');
-        return;
-    }
-    const category = itemCategorySelect.value;
-    const location = itemLocationInput.value.trim();
-    const price = parseFloat(itemPriceInput.value) || 0;
-    const date = itemDateInput.value;
-    // 处理图片
-    let imageBase64 = '';
-    if (itemImageInput.files && itemImageInput.files[0]) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            imageBase64 = e.target.result;
-            actuallySave(id, name, category, location, price, date, imageBase64);
-        };
-        reader.readAsDataURL(itemImageInput.files[0]);
-    } else {
-        // 如果没有新选图片，保留原图片（编辑时）
-        if (id) {
-            const oldItem = items.find(i => i.id === id);
-            if (oldItem && oldItem.imageBase64) imageBase64 = oldItem.imageBase64;
-        }
-        actuallySave(id, name, category, location, price, date, imageBase64);
-    }
-}
-
 function actuallySave(id, name, category, location, price, date, imageBase64) {
+    // 获取图标
+    const icon = document.getElementById('itemIcon')?.value || '📦';
+    // 获取有效状态
+    const isActive = document.getElementById('itemActive')?.checked ?? true;
+    let inactiveDate = '';
+    if (!isActive) {
+        inactiveDate = document.getElementById('itemInactiveDate')?.value || '';
+    }
+    
     if (id) {
         // 更新
         const index = items.findIndex(i => i.id === id);
         if (index !== -1) {
-            items[index] = { ...items[index], name, category, location, price, date, imageBase64 };
+            items[index] = { 
+                ...items[index], 
+                name, category, location, price, date, imageBase64,
+                icon, isActive, inactiveDate
+            };
         }
     } else {
         // 新增
@@ -225,7 +214,10 @@ function actuallySave(id, name, category, location, price, date, imageBase64) {
             location,
             price,
             date,
-            imageBase64
+            imageBase64,
+            icon,
+            isActive,
+            inactiveDate
         };
         items.push(newItem);
     }
@@ -323,6 +315,26 @@ itemImageInput.addEventListener('change', function() {
         reader.readAsDataURL(this.files[0]);
     } else {
         imagePreviewDiv.innerHTML = '';
+    }
+});
+
+// 有效/失效切换交互（模态框内开关）
+document.addEventListener('DOMContentLoaded', function() {
+    const activeCheckbox = document.getElementById('itemActive');
+    const inactiveDateGroup = document.getElementById('inactiveDateGroup');
+    const activeLabel = document.getElementById('activeLabel');
+    if (activeCheckbox && inactiveDateGroup && activeLabel) {
+        const toggleInactiveDate = () => {
+            if (activeCheckbox.checked) {
+                inactiveDateGroup.style.display = 'none';
+                activeLabel.innerText = '有效';
+            } else {
+                inactiveDateGroup.style.display = 'flex';
+                activeLabel.innerText = '失效';
+            }
+        };
+        toggleInactiveDate();            // 初始同步
+        activeCheckbox.addEventListener('change', toggleInactiveDate);
     }
 });
 
