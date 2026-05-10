@@ -8,6 +8,7 @@ body {
     font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif;
     background: #f5f7fb;
     padding: 16px;
+    padding-top: env(safe-area-inset-top, 20px);  
     padding-bottom: 80px;
 }
 
@@ -22,6 +23,7 @@ header {
     align-items: baseline;
     flex-wrap: wrap;
     margin-bottom: 20px;
+    padding-top: env(safe-area-inset-top, 10px);
 }
 
 h1 {
