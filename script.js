@@ -57,60 +57,100 @@ function renderItems() {
         const isActive = item.isActive !== false;
         const card = document.createElement('div');
         card.className = `item-card ${isActive ? '' : 'inactive'}`;
-        // 存储物品id以便长按删除
         card.setAttribute('data-id', item.id);
         
-        // 图片处理（可选，如果没有图片就显示图标）
-        let imgHtml = '';
+        // 左侧显示图标或图片
+        let leftHtml = '';
         if (item.imageBase64 && item.imageBase64.startsWith('data:image')) {
-            imgHtml = `<img class="item-img" src="${item.imageBase64}" alt="图片">`;
+            leftHtml = `<img class="item-img" src="${item.imageBase64}" alt="图片">`;
         } else {
-            // 如果没有图片，使用图标代替
-            imgHtml = `<div class="item-icon">${item.icon || '📦'}</div>`;
+            const iconChar = (item.icon && item.icon.trim()) ? item.icon : '📦';
+            leftHtml = `<div class="item-icon">${iconChar}</div>`;
         }
         
-        // 构建卡片内部HTML（无操作按钮）
+        // 失效标记
+        const inactiveBadge = !isActive ? '<span class="badge-inactive">已失效</span>' : '';
+        
+        // 日期显示
+        let dateHtml = `<div class="item-meta">📅 购买: ${item.date || '无日期'}`;
+        if (!isActive && item.inactiveDate) {
+            dateHtml += ` → 失效: ${item.inactiveDate}`;
+        }
+        dateHtml += `</div>`;
+        
+        // 日均计算
+        let dailyHtml = '';
+        const costInfo = getDailyCost(item.price, item.date, item.inactiveDate, isActive);
+        if (costInfo) {
+            dailyHtml = `<div class="item-daily">📅 有效使用 ${costInfo.days} 天 · 日均 ¥${costInfo.dailyPrice.toFixed(2)}</div>`;
+        }
+        
         card.innerHTML = `
-            ${imgHtml}
+            ${leftHtml}
             <div class="item-info">
-                <div class="item-name">${escapeHtml(item.name)} ${!isActive ? '<span class="badge-inactive">已失效</span>' : ''}</div>
+                <div class="item-name">${escapeHtml(item.name)} ${inactiveBadge}</div>
                 <div class="item-meta">📂 ${item.category} &nbsp;|&nbsp; 📍 ${item.location || '未填'}</div>
-                <div class="item-meta">📅 购买: ${item.date || '无日期'} ${!isActive && item.inactiveDate ? ` → 失效: ${item.inactiveDate}` : ''}</div>
+                ${dateHtml}
                 <div class="item-price">💰 ¥${Number(item.price).toFixed(2)}</div>
-                ${ (() => {
-                    const costInfo = getDailyCost(item.price, item.date, item.inactiveDate, isActive);
-                    if (costInfo) {
-                        return `<div class="item-daily">📅 有效使用 ${costInfo.days} 天 · 日均 ¥${costInfo.dailyPrice.toFixed(2)}</div>`;
-                    }
-                    return '';
-                })() }
+                ${dailyHtml}
             </div>
         `;
         
-        // 添加点击卡片事件（进入编辑）
-        card.addEventListener('click', (e) => {
-            e.stopPropagation();
-            openEditModal(item.id);
-        });
+        // 长按删除逻辑（防止复制菜单）
+        let pressTimer = null;
+        let isLongPress = false;
         
-        // 添加长按删除事件
-        let pressTimer;
+        const cancelPress = () => {
+            if (pressTimer) {
+                clearTimeout(pressTimer);
+                pressTimer = null;
+            }
+        };
+        
+        const handleLongPress = (e) => {
+            e.preventDefault();
+            isLongPress = true;
+            cancelPress();
+            if (confirm(`确定删除“${item.name}”吗？`)) {
+                items = items.filter(i => i.id !== item.id);
+                saveToLocalStorage();
+                renderItems();
+                updateStats();
+            }
+            // 重置标志，避免触发点击
+            setTimeout(() => { isLongPress = false; }, 100);
+        };
+        
+        // 触摸事件
         card.addEventListener('touchstart', (e) => {
-            pressTimer = setTimeout(() => {
-                if (confirm(`确定删除“${item.name}”吗？`)) {
-                    items = items.filter(i => i.id !== item.id);
-                    saveToLocalStorage();
-                    renderItems();
-                    updateStats();
-                }
-            }, 500); // 长按500ms触发
+            cancelPress();
+            isLongPress = false;
+            pressTimer = setTimeout(() => handleLongPress(e), 500);
         });
-        card.addEventListener('touchend', () => {
-            clearTimeout(pressTimer);
+        card.addEventListener('touchend', (e) => {
+            cancelPress();
+            if (!isLongPress) {
+                // 点击进入编辑
+                openEditModal(item.id);
+            }
+            setTimeout(() => { isLongPress = false; }, 50);
         });
-        card.addEventListener('touchmove', () => {
-            clearTimeout(pressTimer);
+        card.addEventListener('touchmove', cancelPress);
+        
+        // 鼠标事件（用于调试）
+        card.addEventListener('mousedown', (e) => {
+            cancelPress();
+            isLongPress = false;
+            pressTimer = setTimeout(() => handleLongPress(e), 500);
         });
+        card.addEventListener('mouseup', (e) => {
+            cancelPress();
+            if (!isLongPress) {
+                openEditModal(item.id);
+            }
+            setTimeout(() => { isLongPress = false; }, 50);
+        });
+        card.addEventListener('mouseleave', cancelPress);
         
         itemsListDiv.appendChild(card);
     });
