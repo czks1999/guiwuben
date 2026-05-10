@@ -218,3 +218,87 @@ input, select {
     margin-top: 6px;
     font-weight: 500;
 }
+/* 卡片背景色 */
+.item-card {
+    background: #e0f2fe;  /* 浅蓝色默认（有效） */
+}
+.item-card.inactive {
+    background: #f0f0f0;  /* 灰色背景 */
+}
+
+/* 图标样式 */
+.item-icon {
+    font-size: 28px;
+    margin-right: 12px;
+    width: 44px;
+    text-align: center;
+}
+
+/* 调整卡片内布局为水平（图标+内容+无按钮） */
+.item-card {
+    display: flex;
+    align-items: center;
+}
+.item-info {
+    flex: 1;
+}
+.item-actions {
+    display: none;  /* 隐藏原有的操作按钮区域 */
+}
+
+/* 长按提示（可选，增加用户友好） */
+.item-card {
+    transition: background 0.2s;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.item-card:active {
+    background: #cbd5e1;
+}
+
+/* 模态框中的开关样式 */
+.switch-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 12px 0;
+}
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 52px;
+    height: 28px;
+}
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.3s;
+    border-radius: 28px;
+}
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 22px;
+    width: 22px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+input:checked + .slider {
+    background-color: #3b82f6;
+}
+input:checked + .slider:before {
+    transform: translateX(24px);
+}
