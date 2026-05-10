@@ -1,13 +1,14 @@
 {
   "name": "归物本",
   "short_name": "归物本",
-  "start_url": "/",
+  "start_url": "/guiwuben/index.html",
+  "scope": "/guiwuben/",
   "display": "standalone",
   "background_color": "#f5f7fb",
   "theme_color": "#3b82f6",
   "icons": [
     {
-      "src": "icon-512.png",
+      "src": "/guiwuben/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
