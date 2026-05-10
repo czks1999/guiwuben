@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>归物本</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="归物本">
+    <link rel="apple-touch-icon" href="icon-512.png">
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <h1>📦 归物本</h1>
+            <button id="addBtn" class="btn-add">+ 添加物品</button>
+        </header>
+
+        <div class="stats">
+            <span>总计物品: <strong id="totalCount">0</strong></span>
+            <span>总价值: ¥<strong id="totalValue">0</strong></span>
+        </div>
+
+        <div id="itemsList" class="items-list">
+            <!-- 动态卡片会出现在这里 -->
+        </div>
+    </div>
+
+    <!-- 添加/编辑物品的模态框 -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="modalTitle">添加物品</h2>
+            <form id="itemForm">
+                <input type="hidden" id="itemId" value="">
+                <label>物品名称 *</label>
+                <input type="text" id="itemName" required>
+
+                <label>分类</label>
+                <select id="itemCategory">
+                    <option value="数码">数码</option>
+                    <option value="衣物">衣物</option>
+                    <option value="书籍">书籍</option>
+                    <option value="家居">家居</option>
+                    <option value="其他">其他</option>
+                </select>
+
+                <label>存放位置</label>
+                <input type="text" id="itemLocation" placeholder="例如：书房第二个抽屉">
+
+                <label>购入价格 (¥)</label>
+                <input type="number" id="itemPrice" step="0.01" value="0">
+
+                <label>购买日期</label>
+                <input type="date" id="itemDate">
+
+                <label>物品图片</label>
+                <input type="file" id="itemImage" accept="image/*" capture="environment">
+                <div id="imagePreview"></div>
+
+                <button type="submit" class="btn-submit">保存</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
