@@ -4,7 +4,7 @@ const STORAGE_KEY = 'guiwuben_items';
 // 全局物品数组
 let items = [];
 
-// DOM 元素
+// DOM 元素（增加安全获取，并在缺失时在控制台报错）
 const itemsListDiv = document.getElementById('itemsList');
 const totalCountSpan = document.getElementById('totalCount');
 const totalValueSpan = document.getElementById('totalValue');
@@ -22,6 +22,11 @@ const itemDateInput = document.getElementById('itemDate');
 const itemImageInput = document.getElementById('itemImage');
 const imagePreviewDiv = document.getElementById('imagePreview');
 
+// 检查关键容器
+if (!itemsListDiv) console.error('❌ 找不到 id="itemsList" 的元素，请检查 index.html');
+if (!addBtn) console.error('❌ 找不到 id="addBtn" 的元素');
+if (!modal) console.error('❌ 找不到 id="modal" 的元素');
+
 // 辅助函数：保存到 localStorage
 function saveToLocalStorage() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
@@ -35,7 +40,7 @@ function loadData() {
         items = items.map(item => {
             if (item.isActive === undefined) item.isActive = true;
             if (item.inactiveDate === undefined) item.inactiveDate = '';
-            if (item.icon === undefined) item.icon = '📦';   // 默认图标
+            if (item.icon === undefined) item.icon = '📦';
             return item;
         });
     } else {
@@ -48,6 +53,10 @@ function loadData() {
 
 // 渲染物品列表
 function renderItems() {
+    if (!itemsListDiv) {
+        console.error('itemsListDiv 不存在，无法渲染');
+        return;
+    }
     if (items.length === 0) {
         itemsListDiv.innerHTML = '<div style="text-align:center; color:gray; padding:40px;">暂无物品，点“+ 添加物品”</div>';
         return;
@@ -68,17 +77,14 @@ function renderItems() {
             leftHtml = `<div class="item-icon">${iconChar}</div>`;
         }
         
-        // 失效标记
         const inactiveBadge = !isActive ? '<span class="badge-inactive">已失效</span>' : '';
         
-        // 日期显示
         let dateHtml = `<div class="item-meta">📅 购买: ${item.date || '无日期'}`;
         if (!isActive && item.inactiveDate) {
             dateHtml += ` → 失效: ${item.inactiveDate}`;
         }
         dateHtml += `</div>`;
         
-        // 日均计算
         let dailyHtml = '';
         const costInfo = getDailyCost(item.price, item.date, item.inactiveDate, isActive);
         if (costInfo) {
@@ -96,7 +102,7 @@ function renderItems() {
             </div>
         `;
         
-        // 长按删除逻辑（防止复制菜单）
+        // 长按删除逻辑
         let pressTimer = null;
         let isLongPress = false;
         
@@ -117,11 +123,9 @@ function renderItems() {
                 renderItems();
                 updateStats();
             }
-            // 重置标志，避免触发点击
             setTimeout(() => { isLongPress = false; }, 100);
         };
         
-        // 触摸事件
         card.addEventListener('touchstart', (e) => {
             cancelPress();
             isLongPress = false;
@@ -130,14 +134,13 @@ function renderItems() {
         card.addEventListener('touchend', (e) => {
             cancelPress();
             if (!isLongPress) {
-                // 点击进入编辑
                 openEditModal(item.id);
             }
             setTimeout(() => { isLongPress = false; }, 50);
         });
         card.addEventListener('touchmove', cancelPress);
         
-        // 鼠标事件（用于调试）
+        // 鼠标事件（便于调试）
         card.addEventListener('mousedown', (e) => {
             cancelPress();
             isLongPress = false;
@@ -156,16 +159,26 @@ function renderItems() {
     });
 }
 
-// 更新顶部统计
+// 更新统计（只统计有效物品）
 function updateStats() {
-    const total = items.length;
-    const totalValue = items.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
-    totalCountSpan.innerText = total;
-    totalValueSpan.innerText = totalValue.toFixed(2);
+    const activeItems = items.filter(item => item.isActive !== false);
+    const total = activeItems.length;
+    const totalValue = activeItems.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+    if (totalCountSpan) totalCountSpan.innerText = total;
+    if (totalValueSpan) totalValueSpan.innerText = totalValue.toFixed(2);
+    
+    let totalDailySum = 0;
+    activeItems.forEach(item => {
+        const costInfo = getDailyCost(item.price, item.date, item.inactiveDate, true);
+        if (costInfo) totalDailySum += costInfo.dailyPrice;
+    });
+    const dailySumSpan = document.getElementById('totalDailySum');
+    if (dailySumSpan) dailySumSpan.innerText = totalDailySum.toFixed(2);
 }
 
 // 打开添加模态框
 function openAddModal() {
+    if (!modal) return;
     modalTitle.innerText = '添加物品';
     itemIdInput.value = '';
     itemNameInput.value = '';
@@ -175,7 +188,7 @@ function openAddModal() {
     itemDateInput.value = '';
     itemImageInput.value = '';
     imagePreviewDiv.innerHTML = '';
-    // 重置图标、状态等
+    
     const iconSelect = document.getElementById('itemIcon');
     if (iconSelect) iconSelect.value = '📦';
     const activeCheckbox = document.getElementById('itemActive');
@@ -186,6 +199,7 @@ function openAddModal() {
     if (activeLabel) activeLabel.innerText = '有效';
     const inactiveDateInput = document.getElementById('itemInactiveDate');
     if (inactiveDateInput) inactiveDateInput.value = '';
+    
     modal.style.display = 'flex';
 }
 
@@ -201,11 +215,9 @@ function openEditModal(id) {
     itemPriceInput.value = item.price;
     itemDateInput.value = item.date || '';
     
-    // 加载图标
     const iconSelect = document.getElementById('itemIcon');
     if (iconSelect) iconSelect.value = item.icon || '📦';
     
-    // 加载有效/失效状态
     const activeCheckbox = document.getElementById('itemActive');
     const inactiveDateGroup = document.getElementById('inactiveDateGroup');
     const inactiveDateInput = document.getElementById('itemInactiveDate');
@@ -213,16 +225,15 @@ function openEditModal(id) {
     if (activeCheckbox) {
         activeCheckbox.checked = item.isActive !== false;
         if (activeCheckbox.checked) {
-            inactiveDateGroup.style.display = 'none';
-            activeLabel.innerText = '有效';
+            if (inactiveDateGroup) inactiveDateGroup.style.display = 'none';
+            if (activeLabel) activeLabel.innerText = '有效';
         } else {
-            inactiveDateGroup.style.display = 'flex';
-            activeLabel.innerText = '失效';
+            if (inactiveDateGroup) inactiveDateGroup.style.display = 'flex';
+            if (activeLabel) activeLabel.innerText = '失效';
             if (inactiveDateInput) inactiveDateInput.value = item.inactiveDate || '';
         }
     }
     
-    // 图片预览等原有代码...
     if (item.imageBase64) {
         imagePreviewDiv.innerHTML = `<img src="${item.imageBase64}" style="max-width:100%;border-radius:16px;">`;
     } else {
@@ -230,9 +241,10 @@ function openEditModal(id) {
     }
     modal.style.display = 'flex';
 }
+
 // 关闭模态框
 function closeModal() {
-    modal.style.display = 'none';
+    if (modal) modal.style.display = 'none';
 }
 
 // 保存物品（新增或更新）
@@ -255,16 +267,13 @@ function saveItem(event) {
         inactiveDate = document.getElementById('itemInactiveDate')?.value || '';
     }
     
-    // 处理图片
     if (itemImageInput.files && itemImageInput.files[0]) {
         const reader = new FileReader();
         reader.onload = function(e) {
-            const imageBase64 = e.target.result;
-            actuallySave(id, name, category, location, price, date, icon, isActive, inactiveDate, imageBase64);
+            actuallySave(id, name, category, location, price, date, icon, isActive, inactiveDate, e.target.result);
         };
         reader.readAsDataURL(itemImageInput.files[0]);
     } else {
-        // 没有新图片，保留原有图片（如果是编辑且已有图片）
         let imageBase64 = '';
         if (id) {
             const existing = items.find(i => i.id === id);
@@ -277,7 +286,6 @@ function saveItem(event) {
 // 实际执行保存
 function actuallySave(id, name, category, location, price, date, icon, isActive, inactiveDate, imageBase64) {
     if (id) {
-        // 编辑现有物品
         const index = items.findIndex(i => i.id === id);
         if (index !== -1) {
             items[index] = {
@@ -286,23 +294,19 @@ function actuallySave(id, name, category, location, price, date, icon, isActive,
             };
         }
     } else {
-        // 新增物品
         const newItem = {
             id: Date.now(),
             name, category, location, price, date, icon, isActive, inactiveDate, imageBase64
         };
         items.push(newItem);
     }
-    // 保存到本地存储
     saveToLocalStorage();
-    // 刷新列表和统计
     renderItems();
     updateStats();
-    // 关闭模态框
     closeModal();
 }
 
-// 防止XSS辅助
+// 防止XSS
 function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/[&<>]/g, function(m) {
@@ -313,14 +317,16 @@ function escapeHtml(str) {
     });
 }
 
-// 计算日均单价（传入价格和购买日期字符串 YYYY-MM-DD）
+// 计算日均单价
 function getDailyCost(price, purchaseDateStr, inactiveDateStr = '', isActive = true) {
     if (!purchaseDateStr || !price || price <= 0) return null;
     const start = new Date(purchaseDateStr);
+    if (isNaN(start.getTime())) return null; // 日期无效
     start.setHours(0,0,0,0);
     let end;
     if (!isActive && inactiveDateStr) {
         end = new Date(inactiveDateStr);
+        if (isNaN(end.getTime())) return null;
     } else {
         end = new Date();
     }
@@ -331,57 +337,14 @@ function getDailyCost(price, purchaseDateStr, inactiveDateStr = '', isActive = t
     return { days: diffDays, dailyPrice: daily };
 }
 
-function updateStats() {
-    const activeItems = items.filter(item => item.isActive !== false);
-    const total = activeItems.length;
-    const totalValue = activeItems.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
-    totalCountSpan.innerText = total;
-    totalValueSpan.innerText = totalValue.toFixed(2);
-    
-    // 可选：日均总花费（如果 index.html 里有 #totalDailySum 元素）
-    let totalDailySum = 0;
-    activeItems.forEach(item => {
-        const costInfo = getDailyCost(item.price, item.date, item.inactiveDate, true);
-        if (costInfo) totalDailySum += costInfo.dailyPrice;
-    });
-    const dailySumSpan = document.getElementById('totalDailySum');
-    if (dailySumSpan) dailySumSpan.innerText = totalDailySum.toFixed(2);
-}
-
-function markInactive(id) {
-    const item = items.find(i => i.id === id);
-    if (!item) return;
-    let inactiveDate = prompt("请输入失效日期 (YYYY-MM-DD)：", new Date().toISOString().slice(0,10));
-    if (!inactiveDate) return;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(inactiveDate)) {
-        alert("日期格式错误，请使用 YYYY-MM-DD");
-        return;
-    }
-    item.isActive = false;
-    item.inactiveDate = inactiveDate;
-    saveToLocalStorage();
-    renderItems();
-    updateStats();
-}
-
-function recoverItem(id) {
-    const item = items.find(i => i.id === id);
-    if (!item) return;
-    item.isActive = true;
-    item.inactiveDate = '';
-    saveToLocalStorage();
-    renderItems();
-    updateStats();
-}
-
-// 事件绑定
-addBtn.addEventListener('click', openAddModal);
-closeBtn.addEventListener('click', closeModal);
-window.addEventListener('click', (e) => {
+// 事件绑定（增加对 modal 等元素的保护）
+if (addBtn) addBtn.addEventListener('click', openAddModal);
+if (closeBtn) closeBtn.addEventListener('click', closeModal);
+if (window) window.addEventListener('click', (e) => {
     if (e.target === modal) closeModal();
 });
-itemForm.addEventListener('submit', saveItem);
-itemImageInput.addEventListener('change', function() {
+if (itemForm) itemForm.addEventListener('submit', saveItem);
+if (itemImageInput) itemImageInput.addEventListener('change', function() {
     if (this.files && this.files[0]) {
         const reader = new FileReader();
         reader.onload = function(e) {
@@ -393,7 +356,7 @@ itemImageInput.addEventListener('change', function() {
     }
 });
 
-// 有效/失效切换交互（模态框内开关）
+// 有效/失效切换交互
 document.addEventListener('DOMContentLoaded', function() {
     const activeCheckbox = document.getElementById('itemActive');
     const inactiveDateGroup = document.getElementById('inactiveDateGroup');
@@ -408,7 +371,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 activeLabel.innerText = '失效';
             }
         };
-        toggleInactiveDate();            // 初始同步
+        toggleInactiveDate();
         activeCheckbox.addEventListener('change', toggleInactiveDate);
     }
 });
