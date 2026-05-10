@@ -84,6 +84,13 @@ function renderItems() {
                 <div class="item-meta">📂 ${item.category} &nbsp;|&nbsp; 📍 ${item.location || '未填'}</div>
                 <div class="item-meta">📅 ${item.date || '无日期'}</div>
                 <div class="item-price">💰 ¥${Number(item.price).toFixed(2)}</div>
+${ (() => {
+    const costInfo = getDailyCost(item.price, item.date);
+    if (costInfo) {
+        return `<div class="item-daily">📅 已用${costInfo.days}天 · 日均 ¥${costInfo.dailyPrice.toFixed(2)}</div>`;
+    }
+    return '';
+})() }
             </div>
             <div class="item-actions">
                 <button class="edit-btn" data-id="${item.id}">✏️</button>
@@ -226,6 +233,20 @@ function escapeHtml(str) {
         if (m === '>') return '&gt;';
         return m;
     });
+}
+
+// 计算日均单价（传入价格和购买日期字符串 YYYY-MM-DD）
+function getDailyCost(price, dateStr) {
+    if (!dateStr || !price || price <= 0) return null;
+    const purchaseDate = new Date(dateStr);
+    const today = new Date();
+    // 重置时间为当天0点，避免时区影响
+    purchaseDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    const diffDays = Math.floor((today - purchaseDate) / (1000 * 60 * 60 * 24));
+    if (diffDays <= 0) return null; // 今天买的或未来，不计日均
+    const daily = price / diffDays;
+    return { days: diffDays, dailyPrice: daily };
 }
 
 // 事件绑定
