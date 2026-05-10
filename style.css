@@ -183,6 +183,35 @@ input, select {
     border-radius: 16px;
     margin-top: 8px;
 }
+
+/* 失效物品卡片样式 */
+.item-card.inactive {
+    opacity: 0.7;
+    background: #f9f9f9;
+}
+.item-card.inactive .item-name {
+    text-decoration: line-through;
+    color: #888;
+}
+.badge-inactive {
+    background: #aaa;
+    color: white;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+.inactive-btn, .recover-btn {
+    background: none;
+    border: none;
+    font-size: 14px;
+    cursor: pointer;
+    margin: 0 2px;
+    padding: 4px;
+}
+.inactive-btn { color: #e67e22; }
+.recover-btn { color: #2ecc71; }
 .item-daily {
     font-size: 12px;
     color: #f59e0b;
