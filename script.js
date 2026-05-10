@@ -249,6 +249,22 @@ function getDailyCost(price, dateStr) {
     return { days: diffDays, dailyPrice: daily };
 }
 
+function updateStats() {
+    const total = items.length;
+    const totalValue = items.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+    totalCountSpan.innerText = total;
+    totalValueSpan.innerText = totalValue.toFixed(2);
+    
+    // 计算所有物品的日均总花费（仅统计有购买日期的）
+    let totalDailySum = 0;
+    items.forEach(item => {
+        const costInfo = getDailyCost(item.price, item.date);
+        if (costInfo) totalDailySum += costInfo.dailyPrice;
+    });
+    // 在stats区域追加显示（需在HTML中增加一个元素）
+    const dailySumSpan = document.getElementById('totalDailySum');
+    if (dailySumSpan) dailySumSpan.innerText = totalDailySum.toFixed(2);
+}
 // 事件绑定
 addBtn.addEventListener('click', openAddModal);
 closeBtn.addEventListener('click', closeModal);
