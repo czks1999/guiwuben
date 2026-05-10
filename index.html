@@ -62,6 +62,34 @@
                 <div id="imagePreview"></div>
 
                 <button type="submit" class="btn-submit">保存</button>
+                <!-- 图标选择 -->
+<label>图标</label>
+<select id="itemIcon">
+    <option value="📱">📱 数码</option>
+    <option value="👕">👕 衣物</option>
+    <option value="📚">📚 书籍</option>
+    <option value="🏠">🏠 家居</option>
+    <option value="🍎">🍎 食品</option>
+    <option value="🎁">🎁 礼物</option>
+    <option value="🔧">🔧 工具</option>
+    <option value="❓">❓ 其他</option>
+</select>
+
+<!-- 有效/失效开关 -->
+<label>状态</label>
+<div class="switch-container">
+    <label class="switch">
+        <input type="checkbox" id="itemActive" checked>
+        <span class="slider"></span>
+    </label>
+    <span id="activeLabel">有效</span>
+</div>
+
+<!-- 失效日期（默认隐藏，仅当失效时显示） -->
+<div id="inactiveDateGroup" style="display: none;">
+    <label>失效日期</label>
+    <input type="date" id="itemInactiveDate">
+</div>
             </form>
         </div>
     </div>
