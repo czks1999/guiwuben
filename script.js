@@ -32,30 +32,18 @@ function loadData() {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
         items = JSON.parse(stored);
+        // 迁移旧数据：为没有 isActive 和 inactiveDate 的物品补全
+        items = items.map(item => {
+            if (item.isActive === undefined) item.isActive = true;
+            if (item.inactiveDate === undefined) item.inactiveDate = '';
+            return item;
+        });
     } else {
-        // 添加几条示例数据
-        items = [
-            {
-                id: Date.now() + 1,
-                name: 'MacBook Pro',
-                category: '数码',
-                location: '书桌抽屉',
-                price: 12999,
-                date: '2025-01-15',
-                imageBase64: ''
-            },
-            {
-                id: Date.now() + 2,
-                name: '羊毛大衣',
-                category: '衣物',
-                location: '主卧衣柜',
-                price: 899,
-                date: '2025-02-10',
-                imageBase64: ''
-            }
-        ];
-        saveToLocalStorage();
+        items = [];
+        // 添加示例数据（可选）
+        // items = [ ... ]; 
     }
+    saveToLocalStorage();
     renderItems();
     updateStats();
 }
@@ -68,38 +56,49 @@ function renderItems() {
     }
     itemsListDiv.innerHTML = '';
     items.forEach(item => {
-        const card = document.createElement('div');
-        card.className = 'item-card';
-        // 图片部分
+        const isActive = item.isActive !== false;
+        const cardClass = `item-card ${isActive ? '' : 'inactive'}`;
+        
         let imgHtml = '';
         if (item.imageBase64 && item.imageBase64.startsWith('data:image')) {
             imgHtml = `<img class="item-img" src="${item.imageBase64}" alt="图片">`;
         } else {
             imgHtml = `<div class="item-img" style="background:#e2e8f0; display:flex; align-items:center; justify-content:center;">📷</div>`;
         }
+        
+        let actionButtons = `<button class="edit-btn" data-id="${item.id}">✏️</button>`;
+        if (isActive) {
+            actionButtons += `<button class="inactive-btn" data-id="${item.id}">🔘失效</button>`;
+        } else {
+            actionButtons += `<button class="recover-btn" data-id="${item.id}">♻️恢复</button>`;
+        }
+        actionButtons += `<button class="delete-btn" data-id="${item.id}">🗑️</button>`;
+        
+        const card = document.createElement('div');
+        card.className = cardClass;
         card.innerHTML = `
             ${imgHtml}
             <div class="item-info">
-                <div class="item-name">${escapeHtml(item.name)}</div>
+                <div class="item-name">${escapeHtml(item.name)} ${!isActive ? '<span class="badge-inactive">已失效</span>' : ''}</div>
                 <div class="item-meta">📂 ${item.category} &nbsp;|&nbsp; 📍 ${item.location || '未填'}</div>
-                <div class="item-meta">📅 ${item.date || '无日期'}</div>
+                <div class="item-meta">📅 购买: ${item.date || '无日期'} ${!isActive && item.inactiveDate ? ` → 失效: ${item.inactiveDate}` : ''}</div>
                 <div class="item-price">💰 ¥${Number(item.price).toFixed(2)}</div>
-${ (() => {
-    const costInfo = getDailyCost(item.price, item.date);
-    if (costInfo) {
-        return `<div class="item-daily">📅 已用${costInfo.days}天 · 日均 ¥${costInfo.dailyPrice.toFixed(2)}</div>`;
-    }
-    return '';
-})() }
+                ${ (() => {
+                    const costInfo = getDailyCost(item.price, item.date, item.inactiveDate, isActive);
+                    if (costInfo) {
+                        return `<div class="item-daily">📅 有效使用 ${costInfo.days} 天 · 日均 ¥${costInfo.dailyPrice.toFixed(2)}</div>`;
+                    }
+                    return '';
+                })() }
             </div>
             <div class="item-actions">
-                <button class="edit-btn" data-id="${item.id}">✏️</button>
-                <button class="delete-btn" data-id="${item.id}">🗑️</button>
+                ${actionButtons}
             </div>
         `;
         itemsListDiv.appendChild(card);
     });
-    // 绑定编辑删除事件
+    
+    // 绑定所有按钮事件
     document.querySelectorAll('.edit-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const id = parseInt(btn.dataset.id);
@@ -115,6 +114,18 @@ ${ (() => {
                 renderItems();
                 updateStats();
             }
+        });
+    });
+    document.querySelectorAll('.inactive-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const id = parseInt(btn.dataset.id);
+            markInactive(id);
+        });
+    });
+    document.querySelectorAll('.recover-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const id = parseInt(btn.dataset.id);
+            recoverItem(id);
         });
     });
 }
@@ -236,35 +247,66 @@ function escapeHtml(str) {
 }
 
 // 计算日均单价（传入价格和购买日期字符串 YYYY-MM-DD）
-function getDailyCost(price, dateStr) {
-    if (!dateStr || !price || price <= 0) return null;
-    const purchaseDate = new Date(dateStr);
-    const today = new Date();
-    // 重置时间为当天0点，避免时区影响
-    purchaseDate.setHours(0, 0, 0, 0);
-    today.setHours(0, 0, 0, 0);
-    const diffDays = Math.floor((today - purchaseDate) / (1000 * 60 * 60 * 24));
-    if (diffDays <= 0) return null; // 今天买的或未来，不计日均
+function getDailyCost(price, purchaseDateStr, inactiveDateStr = '', isActive = true) {
+    if (!purchaseDateStr || !price || price <= 0) return null;
+    const start = new Date(purchaseDateStr);
+    start.setHours(0,0,0,0);
+    let end;
+    if (!isActive && inactiveDateStr) {
+        end = new Date(inactiveDateStr);
+    } else {
+        end = new Date();
+    }
+    end.setHours(0,0,0,0);
+    const diffDays = Math.floor((end - start) / (1000*60*60*24));
+    if (diffDays <= 0) return null;
     const daily = price / diffDays;
     return { days: diffDays, dailyPrice: daily };
 }
 
 function updateStats() {
-    const total = items.length;
-    const totalValue = items.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+    const activeItems = items.filter(item => item.isActive !== false);
+    const total = activeItems.length;
+    const totalValue = activeItems.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
     totalCountSpan.innerText = total;
     totalValueSpan.innerText = totalValue.toFixed(2);
     
-    // 计算所有物品的日均总花费（仅统计有购买日期的）
+    // 可选：日均总花费（如果 index.html 里有 #totalDailySum 元素）
     let totalDailySum = 0;
-    items.forEach(item => {
-        const costInfo = getDailyCost(item.price, item.date);
+    activeItems.forEach(item => {
+        const costInfo = getDailyCost(item.price, item.date, item.inactiveDate, true);
         if (costInfo) totalDailySum += costInfo.dailyPrice;
     });
-    // 在stats区域追加显示（需在HTML中增加一个元素）
     const dailySumSpan = document.getElementById('totalDailySum');
     if (dailySumSpan) dailySumSpan.innerText = totalDailySum.toFixed(2);
 }
+
+function markInactive(id) {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+    let inactiveDate = prompt("请输入失效日期 (YYYY-MM-DD)：", new Date().toISOString().slice(0,10));
+    if (!inactiveDate) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(inactiveDate)) {
+        alert("日期格式错误，请使用 YYYY-MM-DD");
+        return;
+    }
+    item.isActive = false;
+    item.inactiveDate = inactiveDate;
+    saveToLocalStorage();
+    renderItems();
+    updateStats();
+}
+
+function recoverItem(id) {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+    item.isActive = true;
+    item.inactiveDate = '';
+    saveToLocalStorage();
+    renderItems();
+    updateStats();
+}
+
 // 事件绑定
 addBtn.addEventListener('click', openAddModal);
 closeBtn.addEventListener('click', closeModal);
