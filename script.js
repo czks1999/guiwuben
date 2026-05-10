@@ -175,6 +175,17 @@ function openAddModal() {
     itemDateInput.value = '';
     itemImageInput.value = '';
     imagePreviewDiv.innerHTML = '';
+    // 重置图标、状态等
+    const iconSelect = document.getElementById('itemIcon');
+    if (iconSelect) iconSelect.value = '📦';
+    const activeCheckbox = document.getElementById('itemActive');
+    if (activeCheckbox) activeCheckbox.checked = true;
+    const inactiveDateGroup = document.getElementById('inactiveDateGroup');
+    if (inactiveDateGroup) inactiveDateGroup.style.display = 'none';
+    const activeLabel = document.getElementById('activeLabel');
+    if (activeLabel) activeLabel.innerText = '有效';
+    const inactiveDateInput = document.getElementById('itemInactiveDate');
+    if (inactiveDateInput) inactiveDateInput.value = '';
     modal.style.display = 'flex';
 }
 
