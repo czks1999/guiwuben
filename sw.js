@@ -6,6 +6,12 @@ const urlsToCache = [
   '/script.js',
   '/manifest.json',
   '/icon-512.png'
+  '/guiwuben/',
+  '/guiwuben/index.html',
+  '/guiwuben/style.css',
+  '/guiwuben/script.js',
+  '/guiwuben/manifest.json',
+  '/guiwuben/icon-512.png'
 ];
 
 self.addEventListener('install', event => {
